@@ -1,0 +1,8 @@
+# Go
+/api
+/bin
+*.exe
+
+# Python
+/__pycache__
+.env
