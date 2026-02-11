@@ -1,0 +1,22 @@
+name: Update Agenda Daily
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Corre cada 30 minutos
+  workflow_dispatch:      # Permite correrlo a mano
+
+jobs:
+  run-crawler:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 cloudscraper
+      - name: Run Crawler
+        env:
+          # Variable de entorno para que el script sepa a dónde enviar los datos
+          API_URL: https://tu-app-en-render.onrender.com/api/agenda/update
+        run: python scripts/crawler_agenda.py
