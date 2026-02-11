@@ -4,8 +4,9 @@ import time
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 import cloudscraper
+from datetime import datetime # <--- VITAL
 
-# Importamos las herramientas que ya tenemos
+# Importamos tus herramientas
 from tvlibree_parser import parse_tvlibree_channel
 from resolvers import resolve_url
 
@@ -16,15 +17,12 @@ BASE_URL = "https://tvlibree.com"
 scraper = cloudscraper.create_scraper()
 
 def get_deep_sources(relative_url):
-    """
-    Entra a la página del canal (ej: /en-vivo/tudn/) y extrae 
-    todas las opciones (Opción 1, 2, 3...) ya resueltas.
-    """
     full_url = BASE_URL + relative_url if relative_url.startswith('/') else relative_url
     try:
         print(f"      🕵️ Entrando a profundizar: {relative_url}")
-        html = scraper.get(full_url).text
-        # Usamos el parser que ya teníamos para la home
+        resp = scraper.get(full_url)
+        resp.encoding = 'utf-8'
+        html = resp.text
         raw_options = parse_tvlibree_channel(html)
         
         resolved_sources = []
@@ -44,22 +42,26 @@ def get_deep_sources(relative_url):
 
 def parse_agenda():
     print(f"📅 Obteniendo agenda profunda...")
+    # --- SOLUCIÓN AL ERROR: Definir la fecha aquí arriba ---
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    
     try:
         resp = scraper.get(AGENDA_URL)
         resp.encoding = 'utf-8'
         soup = BeautifulSoup(resp.text, 'html.parser')
         events = []
         
-        # Seleccionamos los eventos (LI que no son subitems)
         list_items = soup.find_all('li')
 
         for li in list_items:
+            # Saltamos sub-elementos para no duplicar
             if 'subitem1' in li.get('class', []): continue
             
             link_tag = li.find('a', href="#")
             if not link_tag: continue
             
-            time_text = link_tag.find('span', class_='t').get_text(strip=True) if link_tag.find('span', class_='t') else ""
+            time_span = link_tag.find('span', class_='t')
+            time_text = time_span.get_text(strip=True) if time_span else ""
             title = link_tag.get_text(" ", strip=True).replace(time_text, "").strip()
             
             options_for_event = []
@@ -72,11 +74,9 @@ def parse_agenda():
                     if not opt_a: continue
                     
                     chan_name = opt_a.contents[0].strip()
-                    href = opt_a.get('href')
+                    href = opt_a.get('href', '')
 
-                    # --- LÓGICA DE EXTRACCIÓN PROFUNDA ---
                     if "/en-vivo/" in href:
-                        # Si es un canal de la parrilla, entramos a sacar sus 3 o 4 opciones
                         deep_chans = get_deep_sources(href)
                         for dc in deep_chans:
                             options_for_event.append({
@@ -85,11 +85,10 @@ def parse_agenda():
                                 "type": dc['type'],
                                 "drm": dc.get('drm')
                             })
-                    else:
-                        # Si es un link directo Base64 (?r=...)
-                        parsed = urlparse(href)
-                        params = parse_qs(parsed.query)
-                        if 'r' in params:
+                    elif "?r=" in href:
+                        try:
+                            parsed = urlparse(href)
+                            params = parse_qs(parsed.query)
                             decoded_url = base64.b64decode(params['r'][0]).decode('utf-8')
                             resolved = resolve_url(decoded_url)
                             options_for_event.append({
@@ -98,24 +97,28 @@ def parse_agenda():
                                 "type": resolved['type'],
                                 "drm": resolved.get('drm')
                             })
+                        except: pass
 
             if title and options_for_event:
                 events.append({
                     "title": title,
                     "time": time_text,
-                    "date": current_date, # <--- ENVIAMOS LA FECHA
+                    "date": current_date, # <--- Ahora sí está definida
                     "league": li.get('class')[0] if li.get('class') else "Varios",
                     "channels": options_for_event
                 })
-                print(f"   ⚽ {title} resuelto con {len(options_for_event)} fuentes.")
+                print(f"   ⚽ {title} resuelto ({len(options_for_event)} fuentes).")
 
-
-        # Enviar a GO
-        requests.post(API_GO_URL, json={"events": events})
-        print("🎉 Agenda profunda enviada a Go.")
+        if events:
+            # Enviar a GO
+            print(f"📤 Enviando {len(events)} eventos al backend...")
+            r = requests.post(API_GO_URL, json={"events": events})
+            print(f"🎉 Respuesta del servidor: {r.status_code}")
+        else:
+            print("⚠️ No se encontraron eventos hoy.")
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error general en la agenda: {e}")
 
 if __name__ == "__main__":
     parse_agenda()

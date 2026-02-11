@@ -4,6 +4,7 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options" // <--- IMPORTANTE: Agregado
 )
 
 type Repository interface {
@@ -26,17 +27,14 @@ func (r *repo) ReplaceAgenda(ctx context.Context, events []SportEvent) error {
 		return nil
 	}
 
-	// 1. Obtener la fecha del primer evento recibido (asumiendo que todos son del mismo día)
 	newDate := events[0].Date
 
-	// 2. Limpieza: Borrar eventos que NO sean de la fecha actual
-	// Esto asegura que si el script corre el jueves, lo del miércoles desaparezca
+	// Limpieza de días anteriores
 	_, err := r.col.DeleteMany(ctx, bson.M{"date": bson.M{"$ne": newDate}})
 	if err != nil {
 		return err
 	}
 
-	// 3. Procesar cada evento con Upsert inteligente
 	for _, e := range events {
 		filter := bson.M{
 			"title": e.Title,
@@ -44,7 +42,6 @@ func (r *repo) ReplaceAgenda(ctx context.Context, events []SportEvent) error {
 			"date":  e.Date,
 		}
 
-		// $addToSet agrega las opciones al array 'channels' solo si no existen ya
 		update := bson.M{
 			"$set": bson.M{
 				"league": e.League,
@@ -54,6 +51,7 @@ func (r *repo) ReplaceAgenda(ctx context.Context, events []SportEvent) error {
 			},
 		}
 
+		// Aquí ya no dará error porque importamos 'options'
 		opts := options.Update().SetUpsert(true)
 		_, err := r.col.UpdateOne(ctx, filter, update, opts)
 		if err != nil {
@@ -62,8 +60,12 @@ func (r *repo) ReplaceAgenda(ctx context.Context, events []SportEvent) error {
 	}
 	return nil
 }
+
 func (r *repo) GetAgenda(ctx context.Context) ([]SportEvent, error) {
-	cursor, err := r.col.Find(ctx, bson.M{})
+	// Agregamos un Sort por tiempo para que la lista se vea ordenada
+	findOptions := options.Find().SetSort(bson.D{{Key: "time", Value: 1}})
+
+	cursor, err := r.col.Find(ctx, bson.M{}, findOptions)
 	if err != nil {
 		return nil, err
 	}
