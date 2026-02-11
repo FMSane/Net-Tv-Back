@@ -4,7 +4,7 @@ import (
 	"context"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options" // <--- IMPORTANTE: Agregado
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Repository interface {
@@ -27,43 +27,36 @@ func (r *repo) ReplaceAgenda(ctx context.Context, events []SportEvent) error {
 		return nil
 	}
 
-	newDate := events[0].Date
+	// 1. Detectar la fecha de los eventos que llegan
+	targetDate := events[0].Date
 
-	// Limpieza de días anteriores
-	_, err := r.col.DeleteMany(ctx, bson.M{"date": bson.M{"$ne": newDate}})
+	// 2. BORRADO INTELIGENTE:
+	// Borramos TODOS los eventos de esa fecha específica.
+	// Esto elimina automáticamente los partidos que ya terminaron o desaparecieron de la web.
+	_, err := r.col.DeleteMany(ctx, bson.M{"date": targetDate})
 	if err != nil {
 		return err
 	}
 
-	for _, e := range events {
-		filter := bson.M{
-			"title": e.Title,
-			"time":  e.Time,
-			"date":  e.Date,
-		}
-
-		update := bson.M{
-			"$set": bson.M{
-				"league": e.League,
-			},
-			"$addToSet": bson.M{
-				"channels": bson.M{"$each": e.Channels},
-			},
-		}
-
-		// Aquí ya no dará error porque importamos 'options'
-		opts := options.Update().SetUpsert(true)
-		_, err := r.col.UpdateOne(ctx, filter, update, opts)
-		if err != nil {
-			return err
-		}
+	// 3. INSERCIÓN MASIVA:
+	// Insertamos la lista "fresca" tal cual viene del crawler.
+	docs := make([]interface{}, len(events))
+	for i, e := range events {
+		docs[i] = e
 	}
-	return nil
+
+	_, err = r.col.InsertMany(ctx, docs)
+	return err
 }
 
 func (r *repo) GetAgenda(ctx context.Context) ([]SportEvent, error) {
-	// Agregamos un Sort por tiempo para que la lista se vea ordenada
-	findOptions := options.Find().SetSort(bson.D{{Key: "time", Value: 1}})
+	// 4. ORDENAR:
+	// Usamos el campo "order" para respetar el orden visual de la web (que ya es cronológico).
+	// Si "order" no existe (datos viejos), ordenamos por "time".
+	findOptions := options.Find().SetSort(bson.D{
+		{Key: "order", Value: 1},
+		{Key: "time", Value: 1},
+	})
 
 	cursor, err := r.col.Find(ctx, bson.M{}, findOptions)
 	if err != nil {

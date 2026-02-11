@@ -20,16 +20,13 @@ type repository struct {
 
 func NewRepository(db *mongo.Database) Repository {
 	return &repository{
-		db: db.Collection("channels"), // Nombre de la colección en Mongo
+		db: db.Collection("channels"),
 	}
 }
 
 func (r *repository) UpsertChannelSources(ctx context.Context, dto UpdateChannelDTO) error {
-	// 1. Filtro: Buscamos por nombre exacto
 	filter := bson.M{"name": dto.Name}
 
-	// 2. Actualización: Solo tocamos los 'sources' y la fecha.
-	// Usamos $setOnInsert para poner valores por defecto si es nuevo (como el logo vacio)
 	update := bson.M{
 		"$set": bson.M{
 			"sources":      dto.Sources,
@@ -38,27 +35,28 @@ func (r *repository) UpsertChannelSources(ctx context.Context, dto UpdateChannel
 			"category":     dto.Category,
 		},
 		"$setOnInsert": bson.M{
-			// Ya no hace falta poner defaults aquí porque el Python siempre manda data
 			"created_at": time.Now(),
 		},
 	}
 
-	// 3. Opciones: Upsert = true (Crear si no existe)
 	opts := options.Update().SetUpsert(true)
-
 	_, err := r.db.UpdateOne(ctx, filter, update, opts)
 	return err
 }
 
 func (r *repository) GetAll(ctx context.Context) ([]Channel, error) {
-	// Buscamos todos los documentos (filtro vacío)
-	cursor, err := r.db.Find(ctx, bson.M{})
+	// Agregamos un Sort alfabético por defecto para que no salgan desordenados
+	opts := options.Find().SetSort(bson.D{{Key: "name", Value: 1}})
+
+	cursor, err := r.db.Find(ctx, bson.M{}, opts)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
-	var channels []Channel
+	// Inicializar como slice vacío para que devuelva [] en vez de null si no hay datos
+	channels := make([]Channel, 0)
+
 	if err = cursor.All(ctx, &channels); err != nil {
 		return nil, err
 	}

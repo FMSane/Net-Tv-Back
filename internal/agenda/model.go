@@ -14,6 +14,7 @@ type SportEvent struct {
 	Time     string         `bson:"time" json:"time"`     // "21:00" (Podrías parsearlo a Date si quieres)
 	League   string         `bson:"league" json:"league"` // "CONCACAF"
 	Channels []AgendaOption `bson:"channels" json:"channels"`
+	Order    int            `bson:"order" json:"order"`
 }
 
 // Lo que guardaremos en Mongo (un solo documento gigante o lista, prefiero lista)
