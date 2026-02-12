@@ -7,7 +7,7 @@ from crawler_home import parse_home_grid
 from tvlibree_parser import parse_tvlibree_channel
 from resolvers import resolve_url
 
-API_GO_URL = "http://localhost:8080/api/tv/update-sources"
+API_GO_URL = "https://net-tv-back.onrender.com/api/tv/update-sources"
 HOME_URL = "https://tvlibree.com" 
 
 scraper = cloudscraper.create_scraper()

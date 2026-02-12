@@ -5,24 +5,44 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 import cloudscraper
 from datetime import datetime, timedelta
+import os
 
-# Importamos tus herramientas
+# Importamos tus módulos locales
 from tvlibree_parser import parse_tvlibree_channel
 from resolvers import resolve_url
 
 AGENDA_URL = "https://tvlibree.com/agenda/"
-# Recuerda: Si corre en GitHub, usa la variable de entorno. Si es local, usa localhost.
-import os
+# URL de la API (Render o Local según variable de entorno)
 API_GO_URL = os.getenv("API_URL", "http://localhost:8080/api/agenda/update")
 BASE_URL = "https://tvlibree.com"
 
 scraper = cloudscraper.create_scraper()
 
+def fix_time_offset(time_str):
+    """
+    TvLibree cambia la hora según la IP del visitante.
+    GitHub Actions suele tener IP de UTC o Europa, lo que suma +4 horas.
+    Esta función fuerza la resta de 4 horas para volver a hora Argentina.
+    Entrada: "23:00" -> Salida: "19:00"
+    Entrada: "04:00" -> Salida: "00:00"
+    """
+    try:
+        # 1. Parsear la hora (ej: 23:00)
+        dt = datetime.strptime(time_str, "%H:%M")
+        
+        # 2. Restar 4 horas
+        new_dt = dt - timedelta(hours=4)
+        
+        # 3. Devolver como string limpio
+        return new_dt.strftime("%H:%M")
+    except Exception:
+        # Si falla (ej: viene vacío), devolvemos lo que llegó
+        return time_str
+
 def get_deep_sources(relative_url):
     full_url = BASE_URL + relative_url if relative_url.startswith('/') else relative_url
     try:
-        # print(f"      🕵️ Profundizando: {relative_url}") 
-        # Comentamos el print para no saturar logs, solo errores
+        # print(f"      🕵️ Profundizando: {relative_url}")
         resp = scraper.get(full_url)
         resp.encoding = 'utf-8'
         html = resp.text
@@ -46,13 +66,11 @@ def get_deep_sources(relative_url):
 def parse_agenda():
     print(f"📅 Iniciando Crawler de Agenda...")
     
-    # 1. CORRECCIÓN DE FECHA (Timezone Fix)
-    # GitHub Actions corre en UTC. Argentina es UTC-3.
-    # Restamos 3 horas para obtener la fecha real en Argentina.
+    # 1. FECHA: Forzamos hora Argentina (UTC-3) para la FECHA del evento
     utc_now = datetime.utcnow()
     arg_time = utc_now - timedelta(hours=3)
     current_date = arg_time.strftime("%Y-%m-%d")
-    print(f"🕒 Fecha detectada para Argentina: {current_date}")
+    print(f"🕒 Fecha para base de datos: {current_date}")
 
     try:
         resp = scraper.get(AGENDA_URL)
@@ -61,32 +79,35 @@ def parse_agenda():
         events = []
         
         list_items = soup.find_all('li')
-
-        # Usamos un contador para preservar el orden visual de la página
-        order_counter = 0
+        order_counter = 0 # Para mantener el orden visual de la página
 
         for li in list_items:
+            # Ignoramos sub-items
             if 'subitem1' in li.get('class', []): continue
             
             link_tag = li.find('a', href="#")
             if not link_tag: continue
             
-            # 2. CORRECCIÓN DE EXTRACCIÓN DE TÍTULO Y HORA
-            # En lugar de replace, sacamos el elemento span del árbol HTML temporalmente
+            # --- CORRECCIÓN DE HORA Y TÍTULO ---
+            
+            # 1. Extraemos el SPAN de la hora
             time_span = link_tag.find('span', class_='t')
-            time_text = ""
+            time_text_raw = ""
             
             if time_span:
-                time_text = time_span.get_text(strip=True)
-                # Eliminamos el span para que no se mezcle con el título
-                time_span.decompose() 
+                time_text_raw = time_span.get_text(strip=True)
+                # ¡IMPORTANTE! Lo sacamos del árbol HTML para que no ensucie el título
+                time_span.decompose()
             
-            # Ahora link_tag solo tiene el texto del título
+            # 2. Corregimos el desfase horario (+4 horas -> Normal)
+            final_time = fix_time_offset(time_text_raw)
+            
+            # 3. Obtenemos el título limpio (ya sin la hora adentro)
             title = link_tag.get_text(" ", strip=True).strip()
             
-            # Si no hay hora o título, saltamos
             if not title: continue
 
+            # --- BUSCAR OPCIONES DE CANALES ---
             options_for_event = []
             sub_ul = li.find('ul')
             
@@ -96,14 +117,10 @@ def parse_agenda():
                     opt_a = sub.find('a')
                     if not opt_a: continue
                     
-                    # Manejo seguro del nombre del canal
-                    if opt_a.contents:
-                        chan_name = str(opt_a.contents[0]).strip()
-                    else:
-                        chan_name = "Opción"
-
+                    chan_name = str(opt_a.contents[0]).strip() if opt_a.contents else "Opción"
                     href = opt_a.get('href', '')
 
+                    # Lógica de extracción
                     if "/en-vivo/" in href:
                         deep_chans = get_deep_sources(href)
                         for dc in deep_chans:
@@ -128,30 +145,35 @@ def parse_agenda():
                                 })
                         except: pass
 
+            # Solo agregamos si hay título y opciones
             if options_for_event:
                 order_counter += 1
                 events.append({
                     "title": title,
-                    "time": time_text,
+                    "time": final_time, # Usamos la hora corregida
                     "date": current_date,
                     "league": li.get('class')[0] if li.get('class') else "Varios",
                     "channels": options_for_event,
-                    "order": order_counter # <--- Nuevo campo para ordenar
+                    "order": order_counter # Guardamos el orden original
                 })
-                print(f"   ⚽ [{time_text}] {title} ({len(options_for_event)} fuentes)")
+                print(f"   ⚽ [{final_time}] {title} ({len(options_for_event)} opc)")
 
+        # --- ENVIAR AL BACKEND ---
         if events:
-            print(f"📤 Enviando {len(events)} eventos al backend...")
+            print(f"📤 Enviando {len(events)} eventos corregidos a Go...")
             try:
                 r = requests.post(API_GO_URL, json={"events": events})
-                print(f"🎉 Respuesta del servidor: {r.status_code}")
+                if r.status_code == 200:
+                    print("✅ Agenda actualizada correctamente.")
+                else:
+                    print(f"⚠️ El servidor respondió: {r.status_code}")
             except Exception as e:
-                print(f"❌ Error conectando al backend: {e}")
+                print(f"❌ Error enviando datos: {e}")
         else:
-            print("⚠️ No se encontraron eventos válidos hoy.")
+            print("⚠️ No se encontraron eventos válidos.")
 
     except Exception as e:
-        print(f"❌ Error critico en crawler: {e}")
+        print(f"❌ Error crítico: {e}")
 
 if __name__ == "__main__":
     parse_agenda()
