@@ -28,7 +28,7 @@ def fix_time_offset(time_str):
     """
     try:
         dt = datetime.strptime(time_str, "%H:%M")
-        new_dt = dt - timedelta(hours=4)
+        new_dt = dt - timedelta(hours=5)
         return new_dt.strftime("%H:%M")
     except Exception:
         return time_str
