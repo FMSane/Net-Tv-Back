@@ -12,11 +12,10 @@ import os
 from tvlibree_parser import parse_tvlibree_channel
 from resolvers import resolve_url
 
-# Apuntamos directamente al iframe de la agenda
-AGENDA_URL = "https://futbollibreenhd.net/agenda.html"
+AGENDA_URL = "https://tvlibree.com/agenda/"
+# URL de la API (Render o Local según variable de entorno)
 API_GO_URL = os.getenv("API_URL", "http://localhost:8080/api/agenda/update")
-# Actualizamos la base url para que resuelva bien los links de los canales
-BASE_URL = "https://futbollibreenhd.net"
+BASE_URL = "https://tvlibree.com"
 
 scraper = cloudscraper.create_scraper()
 
@@ -28,7 +27,7 @@ def fix_time_offset(time_str):
     """
     try:
         dt = datetime.strptime(time_str, "%H:%M")
-        new_dt = dt - timedelta(hours=5)
+        new_dt = dt - timedelta(hours=4)
         return new_dt.strftime("%H:%M")
     except Exception:
         return time_str
