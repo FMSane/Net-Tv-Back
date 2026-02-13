@@ -1,7 +1,7 @@
 name: Crawler Agenda Automatizado
 on:
   schedule:
-    - cron: '*/30 * * * *' # Se ejecuta cada 30 minutos
+    - cron: '0 */2 * * *' # Se ejecuta en el minuto 0 de cada 2 horas (00:00, 02:00, 04:00, etc.)
   workflow_dispatch:      # Permite ejecutarlo manualmente desde la pestaña Actions
 
 jobs:
