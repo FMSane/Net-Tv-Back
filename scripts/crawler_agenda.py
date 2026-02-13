@@ -12,10 +12,11 @@ import os
 from tvlibree_parser import parse_tvlibree_channel
 from resolvers import resolve_url
 
-AGENDA_URL = "https://tvlibree.com/agenda/"
-# URL de la API (Render o Local según variable de entorno)
+# Apuntamos directamente al iframe de la agenda
+AGENDA_URL = "https://futbollibreenhd.net/agenda.html"
 API_GO_URL = os.getenv("API_URL", "http://localhost:8080/api/agenda/update")
-BASE_URL = "https://tvlibree.com"
+# Actualizamos la base url para que resuelva bien los links de los canales
+BASE_URL = "https://futbollibreenhd.net"
 
 scraper = cloudscraper.create_scraper()
 
