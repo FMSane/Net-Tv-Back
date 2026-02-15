@@ -11,7 +11,7 @@ from resolvers import resolve_url
 
 load_dotenv()
 
-API_GO_URL = os.getenv("API_URL_CHANNELS", "http://localhost:8080/api/tv/update-sources"
+API_GO_URL = os.getenv("API_URL_CHANNELS", "http://localhost:8080/api/tv/update-sources")
 HOME_URL = "https://tvlibree.com" 
 
 scraper = cloudscraper.create_scraper()
