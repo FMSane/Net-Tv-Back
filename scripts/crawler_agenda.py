@@ -8,13 +8,17 @@ import cloudscraper
 from datetime import datetime, timedelta
 import os
 
+from dotenv import load_dotenv
+
 # Importamos tus módulos locales
 from tvlibree_parser import parse_tvlibree_channel
 from resolvers import resolve_url
 
+load_dotenv()
+
 AGENDA_URL = "https://tvlibree.com/agenda/"
 # URL de la API (Render o Local según variable de entorno)
-API_GO_URL = os.getenv("API_URL", "http://localhost:8080/api/agenda/update")
+API_GO_URL = os.getenv("API_URL_AGENDA", "http://localhost:8080/api/agenda/update")
 BASE_URL = "https://tvlibree.com"
 
 scraper = cloudscraper.create_scraper()

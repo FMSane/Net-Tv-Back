@@ -2,12 +2,16 @@ import time
 import cloudscraper
 import requests
 
+from dotenv import load_dotenv
+
 # Importamos tus módulos
 from crawler_home import parse_home_grid
 from tvlibree_parser import parse_tvlibree_channel
 from resolvers import resolve_url
 
-API_GO_URL = "https://net-tv-back.onrender.com/api/tv/update-sources"
+load_dotenv()
+
+API_GO_URL = os.getenv("API_URL_CHANNELS", "http://localhost:8080/api/tv/update-sources"
 HOME_URL = "https://tvlibree.com" 
 
 scraper = cloudscraper.create_scraper()
