@@ -22,6 +22,5 @@ jobs:
 
       - name: Ejecutar Crawler
         env:
-          # Aquí le decimos al script la URL de Render
-          API_URL: ${{ secrets.API_URL_RENDER }}
+          API_URL_AGENDA: ${{ secrets.API_URL_RENDER }}
         run: python scripts/crawler_agenda.py
