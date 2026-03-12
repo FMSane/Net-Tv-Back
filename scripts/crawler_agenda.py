@@ -16,10 +16,10 @@ from resolvers import resolve_url
 
 load_dotenv()
 
-AGENDA_URL = "https://tvlibree.com/agenda/"
+AGENDA_URL = "https://tvlibr3.com/agenda/"
 # URL de la API (Render o Local según variable de entorno)
-API_GO_URL = os.getenv("API_URL_AGENDA", "http://localhost:8080/api/agenda/update")
-BASE_URL = "https://tvlibree.com"
+API_GO_URL = os.getenv("API_URL", "http://localhost:8080/api/agenda/update")
+BASE_URL = "https://tvlibr3.com"
 
 scraper = cloudscraper.create_scraper()
 
@@ -72,7 +72,7 @@ def parse_agenda():
         resp = scraper.get(AGENDA_URL)
         resp.encoding = 'utf-8'
         html_text = resp.text # Guardamos el texto crudo para buscar el CSS
-        
+
         soup = BeautifulSoup(html_text, 'html.parser')
         events = []
         
