@@ -16,7 +16,7 @@ from resolvers import resolve_url
 
 load_dotenv()
 
-AGENDA_URL = "https://tvlibr3.com/agenda/"
+AGENDA_URL = "https://tv-libre.net/agenda/"
 # URL de la API (Render o Local según variable de entorno)
 API_GO_URL = os.getenv("API_URL_AGENDA", "http://localhost:8080/api/agenda/update")
 BASE_URL = "https://tvlibr3.com"
