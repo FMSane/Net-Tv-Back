@@ -1,6 +1,12 @@
+import os
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 
-BASE_URL = "https://tvlibree.com"
+load_dotenv()
+
+# --- VARIABLES DINÁMICAS DESDE EL .ENV ---
+TVLIBRE_DOMAIN = os.getenv("TVLIBRE_DOMAIN", "https://tvlibre-online.com")
+BASE_URL = TVLIBRE_DOMAIN
 
 # 1. Filtros por CATEGORÍA (Badges)
 BLACKLIST_BADGES = ["Paraguay", "Adultos (+18)"]
@@ -15,21 +21,16 @@ def parse_home_grid(html_content):
     """
 
     # --- BLOQUE DE CORRECCIÓN DE CODIFICACIÓN ---
-    # Si viene en bytes (response.content), decodificamos explícitamente a UTF-8
     if isinstance(html_content, bytes):
         try:
             html_content = html_content.decode('utf-8')
         except UnicodeDecodeError:
             html_content = html_content.decode('iso-8859-1')
     
-    # Si viene en string (response.text) y ya está roto (ej: "AmÃ©rica"), intentamos arreglarlo
     elif isinstance(html_content, str):
         try:
-            # El truco: Invertir la decodificación incorrecta (Latin1) y re-decodificar como UTF-8
-            # Esto transforma "AmÃ©rica" -> "América"
             html_content = html_content.encode('iso-8859-1').decode('utf-8')
         except Exception:
-            # Si falla (porque no estaba roto), lo dejamos tal cual
             pass
 
     # --- PARSEO ---
@@ -48,22 +49,16 @@ def parse_home_grid(html_content):
     for card in cards:
         try:
             # --- A. EXTRACCIÓN DE DATOS ---
-            
-            # Nombre (Limpiamos espacios extra)
             title_tag = card.find('h2', class_='title')
             name = title_tag.get_text(strip=True) if title_tag else "Desconocido"
 
-            # Badges (Categorías)
             badges_tags = card.find_all('span', class_='badge')
             badges_text = [b.get_text(strip=True) for b in badges_tags]
 
             # --- B. FILTRADO (Badges + Títulos) ---
-            
-            # 1. Filtro por Badges (Categoría prohibida)
             if any(bad in badges_text for bad in BLACKLIST_BADGES):
                 continue 
 
-            # 2. Filtro por Título (Canal específico prohibido)
             if any(forbidden.lower() == name.lower() for forbidden in BLACKLIST_TITLES):
                 continue
 
