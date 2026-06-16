@@ -1,13 +1,18 @@
 import re
 import base64
+import os
 import cloudscraper
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# --- VARIABLES DINÁMICAS DESDE EL .ENV ---
+TVLIBRE_DOMAIN = os.getenv("TVLIBRE_DOMAIN", "https://tvlibre-online.com")
 
 scraper = cloudscraper.create_scraper()
 
 # --- BASE DE DATOS DE LLAVES (Extraída de tu JS) ---
-# Clave: El código en Base64 (getURL)
-# Valor: {keyId, key}
 NEBUNEXA_DRM_MAP = {
     "RVNQTjJIRA": {"kid": "e884b711ab111beb8a7ba1e7bcbdc9bf", "k": "cb89ee3961599e3e648a5aad60895f34"}, # ESPN 2 HD
     "U3lGeQ==": {"kid": "9cd99cbb466c42e5b33e7a2ef7e2c7df", "k": "18d9faccdaf2d15807d0a3f713e8b2a4"}, # SyFy
@@ -22,17 +27,13 @@ NEBUNEXA_DRM_MAP = {
     "RVNQTjQ=": {"kid": "24f2b3e741f0d9e9a8d516faff38bddc", "k": "bbd3fd02fb104e1463ac528a13f67e4a"}, # ESPN 4
     "TkJBX1RW": {"kid": "d0c38de3c9844e4e9f975dffb3eff8ad", "k": "141ca0fdf6ebadfa7107576b8e09e117"}, # NBA TV
     "SFRW": {"kid": "daecef5fe32f4ce083c6a0c692755d6a", "k": "d4227f24389a9ba77293214b93eb0d7d"}, # HTV
-    "RXZlbnRvc18yX0hE": {"kid": "e54e9ea87a634658fbba0e380aa701a7", "k": "4e486d25d7d0e7d131743b285963c643"}, # Flow Sports 2 (EL QUE BUSCABAS)
+    "RXZlbnRvc18yX0hE": {"kid": "e54e9ea87a634658fbba0e380aa701a7", "k": "4e486d25d7d0e7d131743b285963c643"}, # Flow Sports 2
     "VlRWX1BsdXNfSEQ": {"kid": "da8a49a594160cc0059f07b9f71cd39a", "k": "37ca91dd799b351a02445151c7f61070"}, # VTV Plus
-    "SEJPSEQ=": {"kid": "5317283f4110fac3fb3a0becd9f648bc", "k": "0754a03c926b1247216e01d9dbcfac28"}, # HBO
-    # ... (Puedes agregar el resto de la lista gigante aquí poco a poco) ...
+    "SEJPSEQ=": {"kid": "5317283f4110fac3fb3a0becd9f648bc", "k": "0754a03c926b1247216e01d9dbcfac28"} # HBO
 }
 
-# --- LÓGICA DE SERVIDORES (Replica el if/else de 'number') ---
+# --- LÓGICA DE SERVIDORES ---
 def get_server_number(code):
-    """Determina si va al servidor c3, c4, c5, c6 o c7"""
-    
-    # Grupo 7
     group_7 = ["QTNfQ2luZQ==", "Rmxvd19NdXNpY19YUA==", "Rmxvd19NdXNpY18x", "Rmxvd19NdXNpY18y", "Rmxvd19NdXNpY18z", "QUVIRA==", 
                "SG9sYV9UVg==", "QVhOSEQ=", "TVRWMDA=", "V2FybmVySEQ=", "R0VOX1RW", "Rm94X1Nwb3J0c19QcmVtaXVuX0hE", "VG9kb05vdGljaWFz", 
                "VHlDU3BvcnQ", "QW1lcmljYTI0", "QzVO", "TGFfTmFjaW9u", "Q3JvbmljYVRW", "Q2FuYWxfOF9UdWN1bWFu", "UGFyYWd1YXlfVFY=", 
@@ -41,7 +42,6 @@ def get_server_number(code):
                "Rm94U3BvcnRzMl9VWQ==", "RVNQTjQ=", "Rm94U3BvcnRzM19VWQ==", "RXZlbnRvc19IRF9VeQ==", "VGVsZW11bmRvX0hE", "RVNQTjNfVXktUHk=", 
                "QTNfU2VyaWVz", "VVNBX05ldHdvcms="]
     
-    # Grupo 6
     group_6 = ["RVNQTjJfQXJn", "Q2luZW1heA==", "RXZlbnRvc18yX0hE", "Q2FuYWxfOF9DQkE", "MjZfVFZfSEQ", "RGlwdXRhZG9zX1RW", "QXJnZW50aW5pc2ltYQ", 
                "TWV0cm8", "QkJDX1dvcmxkX05ld3M", "VGhlYXRlcl9IRA==", "R2xpdHo=", "UXVpZXJvX0hE", "RGlzY292ZXJ5X1dvcmxkX0hE", "RXVyb2NoYW5uZWw=", 
                "RGlzY292ZXJ5X1NjaWVuY2U=", "SU5DQUFfVHY=", "VFY1X01vbmRl", "TVRWX0hpdHM=", "TVRWX0hE", "Tmlja19Kcg==", "VFZfRXNwYW5h", "V09CSQ==", 
@@ -54,10 +54,8 @@ def get_server_number(code):
                "VW5pdmVyc2FsX0NpbmVtYQ==", "VW5pdmVyc2FsX0NvbWVkeQ==", "dW5pdmVyc2FsX0NyaW1l", "VW5pdmVyc2FsX1ByZW1pZXJl", "VW5pdmVyc2FsX1JlYWxpdHk=", 
                "Q2FuYWxfZGVfbGFzX2VzdHJlbGxhcw==", "S1pP", "R29sZGVu"]
     
-    # Grupo 5
     group_5 = ["QzlOX0M0"]
     
-    # Grupo 4
     group_4 = ["Q2FuYWxfNV9Sb3Nhcmlv", "VEVMRUZVVFVST19DNA==", "VGVsZWZlX05ldXF1ZW4=", "VGVsZWZlX1NhbHRh", "U05UX0M0", "UEFSQVZJU0lPTl9DNA==", 
                "Tk9USUNJQVNfUFlfQzQ=", "TEFfVEVMRV9DNA==", "U1VSX1RWX0M0", "Q2FuYWwxMlVSVQ==", "RGlzY292ZXJ5SG9tZUhlYWx0aEhE", "Q2FuYWw0X1VSVQ==", 
                "SEJPSEQ=", "Q2FuYWwxMF9VUlU=", "UlBDX0M0", "RVNQTjJfVVk=", "RVNQTl9VWQ=="]
@@ -66,20 +64,17 @@ def get_server_number(code):
     if code in group_6: return 6
     if code in group_5: return 5
     if code in group_4: return 4
-    return 3 # Default del "else" final
+    return 3
 
 def resolve_nebunexa_direct(url):
     try:
-        # Extraer el código después de get=
         code_match = re.search(r"get=([a-zA-Z0-9+=]+)", url)
         if not code_match: return None
         code = code_match.group(1)
         
-        # 1. ¿Tenemos la llave?
         drm_data = NEBUNEXA_DRM_MAP.get(code)
         
         if drm_data:
-            # SI TENEMOS LLAVE: Generamos el .mpd directo
             decoded_id = base64.b64decode(code).decode('utf-8')
             server_num = get_server_number(code)
             mpd_url = f"https://cdn.cvattv.com.ar/live/c{server_num}eds/{decoded_id}/SA_Live_dash_enc_C/{decoded_id}.mpd"
@@ -92,13 +87,11 @@ def resolve_nebunexa_direct(url):
                 }
             }
         else:
-            # NO TENEMOS LLAVE: Forzamos IFRAME para que Nebunexa cargue su propio player
-            # Esto evita que el front descargue archivos .mpd
             return {
                 "url": url,
                 "type": "iframe",
                 "headers": {
-                    "Referer": "https://tvlibree.com/",
+                    "Referer": f"{TVLIBRE_DOMAIN}/", # <--- REFERER DINÁMICO
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
                 }
             }
@@ -106,8 +99,7 @@ def resolve_nebunexa_direct(url):
         print(f"Error en resolver Nebunexa: {e}")
         return None
 
-
-# --- FUNCIONES LEGACY (Las que ya tenías) ---
+# --- FUNCIONES LEGACY ---
 def resolve_generic(url):
     return {"url": url, "type": "iframe"}
 
@@ -133,7 +125,7 @@ def resolve_welivesports(url):
     except: return None
 
 RESOLVER_MAP = {
-    "nebunexa.life": resolve_nebunexa_direct, # <--- USAMOS LA NUEVA FUNCIÓN
+    "nebunexa.life": resolve_nebunexa_direct,
     "bolaloca.my": resolve_bolaloca,
     "la14hd.com": resolve_la14hd,
     "welivesports.shop": resolve_welivesports,

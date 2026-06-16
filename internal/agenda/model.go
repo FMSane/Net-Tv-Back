@@ -8,6 +8,7 @@ type AgendaOption struct {
 	Type       string `bson:"type" json:"type"` // NUEVO: "m3u8", "dash", "iframe"
 	Drm        any    `bson:"drm" json:"drm"`   // NUEVO: Info DRM si aplica
 	IsExternal bool   `bson:"is_external" json:"is_external"`
+	Referer    string `bson:"referer" json:"referer"`
 }
 
 type SportEvent struct {

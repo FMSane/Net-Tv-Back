@@ -1,0 +1,29 @@
+name: nettv-backend
+
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: nettv_mongo_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data_dev:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: streaming_db
+
+  # Opcional: Levantar también la API de Go con Docker
+  api:
+    build: .
+    container_name: nettv_go_api
+    ports:
+      - "8080:8080"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/streaming_db
+      - PORT=8080
+    depends_on:
+      - mongodb
+
+volumes:
+  mongo_data_dev:

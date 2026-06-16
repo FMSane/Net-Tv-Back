@@ -12,15 +12,18 @@ from resolvers import resolve_url
 
 load_dotenv()
 
+# --- VARIABLES DINÁMICAS DESDE EL .ENV ---
 API_GO_URL = os.getenv("API_URL_CHANNELS", "http://localhost:8080/api/tv/update-sources")
-HOME_URL = "https://tvlibree.com" 
+TVLIBRE_DOMAIN = os.getenv("TVLIBRE_DOMAIN", "https://tvlibre-online.com")
+
+HOME_URL = f"{TVLIBRE_DOMAIN}/"
 
 scraper = cloudscraper.create_scraper()
 
 def main():
     print("🚀 INICIANDO ACTUALIZACIÓN PROFUNDA DE CANALES...")
     
-    # 1. Obtener la lista de canales desde la portada (Filtrando Paraguay y Adultos)
+    # 1. Obtener la lista de canales desde la portada
     try:
         home_html = scraper.get(HOME_URL).text
         channel_list = parse_home_grid(home_html)
@@ -31,24 +34,18 @@ def main():
 
     # 2. Deep Crawl: Entrar a cada canal para sacar sus fuentes reales
     for i, canal in enumerate(channel_list):
-        # Mostramos progreso
         print(f"\n[{i+1}/{len(channel_list)}] 📺 Canal: {canal['name']} ({canal['category']})")
         
         try:
-            # A. Entramos a la URL del canal (ej: tvlibree.com/en-vivo/telefe)
             resp = scraper.get(canal['url'])
-            resp.encoding = 'utf-8' # Evitar problemas de tildes
+            resp.encoding = 'utf-8'
             channel_html = resp.text
             
-            # B. Extraemos los botones (Opción 1, 2, 3...)
-            # Esta función ya maneja tu lógica de Nebunexa (/fl/ -> nebunexa.life)
             raw_options = parse_tvlibree_channel(channel_html)
             
             final_sources = []
 
-            # C. Resolvemos cada opción (Convertimos URLs a streamings reales)
             for opt in raw_options:
-                # resolve_url se encarga de convertir nebunexa.life a DASH .mpd con DRM
                 resolved = resolve_url(opt['raw_url'])
                 
                 if resolved:
@@ -82,7 +79,6 @@ def main():
             else:
                 print("      ⚠️ No se encontraron fuentes válidas dentro del canal.")
 
-            # Pausa para no ser baneados por exceso de peticiones
             time.sleep(0.5)
 
         except Exception as e:
