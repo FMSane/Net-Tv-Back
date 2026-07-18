@@ -28,7 +28,7 @@ jobs:
           
           # --- VARIABLES PÚBLICAS ---
           # Si algún día cambian de dominio, solo lo modificas aquí
-          TVLIBRE_DOMAIN: "https://tvlibre-online.com"
+          TVLIBRE_DOMAIN: "https://tvlibreonline.tv"
           DL_DOMAIN: "https://deporte-libre.online"
         run: |
           # Navegamos a la carpeta scripts para evitar problemas de importación con los otros módulos
