@@ -17,7 +17,7 @@ from resolvers import resolve_url
 load_dotenv()
 
 # --- VARIABLES DINÁMICAS DESDE EL .ENV ---
-TVLIBRE_DOMAIN = os.getenv("TVLIBRE_DOMAIN", "https://tvlibre-online.com")
+TVLIBRE_DOMAIN = os.getenv("TVLIBRE_DOMAIN", "https://tvlibreonline.tv/")
 DL_DOMAIN = os.getenv("DL_DOMAIN", "https://deporte-libre.online")
 
 AGENDA_URL = f"{TVLIBRE_DOMAIN}/agenda/"
